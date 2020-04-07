@@ -9,8 +9,10 @@
 package providers
 
 import (
+	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -54,9 +56,17 @@ func NewKubeEndpointsConfigProvider(config config.ConfigurationProviders) (Confi
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to apiserver: %s", err)
 	}
+
 	servicesInformer := ac.InformerFactory.Core().V1().Services()
 	if servicesInformer == nil {
 		return nil, fmt.Errorf("cannot get service informer: %s", err)
+	}
+
+	// Sync servicesInformer
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(syncTimeout))
+	defer cancel()
+	if !cache.WaitForCacheSync(ctx.Done(), servicesInformer.Informer().HasSynced) {
+		log.Error("Service cache sync timed out")
 	}
 
 	p := &kubeEndpointsConfigProvider{
@@ -74,6 +84,14 @@ func NewKubeEndpointsConfigProvider(config config.ConfigurationProviders) (Confi
 	if endpointsInformer == nil {
 		return nil, fmt.Errorf("cannot get endpoint informer: %s", err)
 	}
+
+	// Sync endpointsInformer
+	ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(syncTimeout))
+	defer cancel()
+	if !cache.WaitForCacheSync(ctx.Done(), endpointsInformer.Informer().HasSynced) {
+		log.Error("Endpoints cache sync timed out")
+	}
+
 	p.endpointsLister = endpointsInformer.Lister()
 
 	endpointsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{

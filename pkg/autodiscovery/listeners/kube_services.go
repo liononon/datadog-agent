@@ -9,9 +9,11 @@
 package listeners
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -58,10 +60,19 @@ func NewKubeServiceListener() (ServiceListener, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to apiserver: %s", err)
 	}
+
 	servicesInformer := ac.InformerFactory.Core().V1().Services()
 	if servicesInformer == nil {
 		return nil, fmt.Errorf("cannot get service informer: %s", err)
 	}
+
+	// Sync servicesInformer
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(syncTimeout))
+	defer cancel()
+	if !cache.WaitForCacheSync(ctx.Done(), servicesInformer.Informer().HasSynced) {
+		log.Error("Service cache sync timed out")
+	}
+
 	return &KubeServiceListener{
 		services: make(map[types.UID]Service),
 		informer: servicesInformer,

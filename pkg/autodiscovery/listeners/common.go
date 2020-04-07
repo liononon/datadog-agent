@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"hash/fnv"
 	"strconv"
+	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	v1 "k8s.io/api/core/v1"
@@ -30,6 +32,9 @@ const (
 	tagKeyVersion = "version"
 	tagKeyService = "service"
 )
+
+// syncTimeout can be used to wait for the kubernetes client-go cache to sync.
+var syncTimeout = config.Datadog.GetDuration("cache_sync_timeout") * time.Second
 
 // ComputeContainerServiceIDs takes an entity name, an image (resolved to an actual name) and labels
 // and computes the service IDs for this container service.

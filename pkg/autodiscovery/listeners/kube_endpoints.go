@@ -9,8 +9,10 @@
 package listeners
 
 import (
+	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
@@ -61,14 +63,31 @@ func NewKubeEndpointsListener() (ServiceListener, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to apiserver: %s", err)
 	}
+
 	endpointsInformer := ac.InformerFactory.Core().V1().Endpoints()
 	if endpointsInformer == nil {
 		return nil, fmt.Errorf("cannot get endpoints informer: %s", err)
 	}
+
+	// Sync endpointsInformer
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(syncTimeout))
+	defer cancel()
+	if !cache.WaitForCacheSync(ctx.Done(), endpointsInformer.Informer().HasSynced) {
+		log.Error("Endpoints cache sync timed out")
+	}
+
 	serviceInformer := ac.InformerFactory.Core().V1().Services()
 	if serviceInformer == nil {
 		return nil, fmt.Errorf("cannot get service informer: %s", err)
 	}
+
+	// Sync serviceInformer
+	ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(syncTimeout))
+	defer cancel()
+	if !cache.WaitForCacheSync(ctx.Done(), serviceInformer.Informer().HasSynced) {
+		log.Error("Service cache sync timed out")
+	}
+
 	return &KubeEndpointsListener{
 		endpoints:         make(map[types.UID][]*KubeEndpointService),
 		endpointsInformer: endpointsInformer,

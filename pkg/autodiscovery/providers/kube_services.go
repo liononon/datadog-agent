@@ -9,8 +9,10 @@
 package providers
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -42,9 +44,17 @@ func NewKubeServiceConfigProvider(config config.ConfigurationProviders) (ConfigP
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to apiserver: %s", err)
 	}
+
 	servicesInformer := ac.InformerFactory.Core().V1().Services()
 	if servicesInformer == nil {
 		return nil, fmt.Errorf("cannot get service informer: %s", err)
+	}
+
+	// Sync servicesInformer
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(syncTimeout))
+	defer cancel()
+	if !cache.WaitForCacheSync(ctx.Done(), servicesInformer.Informer().HasSynced) {
+		log.Error("Service cache sync timed out")
 	}
 
 	p := &KubeServiceConfigProvider{
