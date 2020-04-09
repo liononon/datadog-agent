@@ -51,7 +51,9 @@ type Config struct {
 	NodeName                string       `json:"node_name"`                 // node name in case of an endpoint check backed by a pod
 	CreationTime            CreationTime `json:"-"`                         // creation time of service
 	Source                  string       `json:"source"`                    // the source of the configuration
-	IgnoreAutodiscoveryTags bool         `json:"ignore_autodiscovery_tags"` // Use to ignore tags coming from autodiscovery
+	IgnoreAutodiscoveryTags bool         `json:"ignore_autodiscovery_tags"` // used to ignore tags coming from autodiscovery
+	MetricsExcluded         bool         `json:"-"`                         // whether metrics collection is disabled (set by container listeners only)
+	LogsExcluded            bool         `json:"-"`                         // whether logs collection is disabled (set by container listeners only)
 }
 
 // CommonInstanceConfig holds the reserved fields for the yaml instance data
@@ -121,6 +123,16 @@ func (c *Config) IsCheckConfig() bool {
 // IsLogConfig returns true if config contains a logs config.
 func (c *Config) IsLogConfig() bool {
 	return c.LogsConfig != nil
+}
+
+// IsMetricExcluded returns true if metrics collection must be disabled for this config.
+func (c *Config) IsMetricExcluded() bool {
+	return c.MetricsExcluded
+}
+
+// IsLogExcluded returns true if logs collection must be disabled for this config.
+func (c *Config) IsLogExcluded() bool {
+	return c.LogsExcluded
 }
 
 // AddMetrics adds metrics to a check configuration

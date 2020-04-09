@@ -36,6 +36,8 @@ type Service interface {
 	GetCreationTime() integration.CreationTime // created before or after the agent start
 	IsReady() bool                             // is the service ready
 	GetCheckNames() []string                   // slice of check names defined in kubernetes annotations or docker labels
+	IsMetricExcluded() bool                    // whether the service is excluded by metrics exclusion config
+	IsLogExcluded() bool                       // whether the service is excluded by logs exclusion config
 }
 
 // ServiceListener monitors running services and triggers check (un)scheduling

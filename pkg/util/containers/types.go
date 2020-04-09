@@ -111,3 +111,15 @@ type ContainerImplementation interface {
 
 	metrics.ContainerMetricsProvider
 }
+
+// FilterType indicates the container filter type
+type FilterType string
+
+// Global is used to cover both Metrics and Logs filter types
+const Global FilterType = "Global"
+
+// Metrics refers to the Metrics filter type
+const Metrics FilterType = "Metrics"
+
+// Logs refers to the Logs filter type
+const Logs FilterType = "Logs"

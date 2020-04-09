@@ -33,7 +33,7 @@ const (
 // KubeletListener listen to kubelet pod creation
 type KubeletListener struct {
 	watcher    *kubelet.PodWatcher
-	filter     *containers.Filter
+	filters    *containerFilters
 	services   map[string]Service
 	newService chan<- Service
 	delService chan<- Service
@@ -45,13 +45,15 @@ type KubeletListener struct {
 
 // KubeContainerService implements and store results from the Service interface for the Kubelet listener
 type KubeContainerService struct {
-	entity        string
-	adIdentifiers []string
-	hosts         map[string]string
-	ports         []ContainerPort
-	creationTime  integration.CreationTime
-	ready         bool
-	checkNames    []string
+	entity          string
+	adIdentifiers   []string
+	hosts           map[string]string
+	ports           []ContainerPort
+	creationTime    integration.CreationTime
+	ready           bool
+	checkNames      []string
+	metricsExcluded bool
+	logsExcluded    bool
 }
 
 // Make sure KubeContainerService implements the Service interface
@@ -79,13 +81,13 @@ func NewKubeletListener() (ServiceListener, error) {
 	if err != nil {
 		return nil, err
 	}
-	filter, err := containers.NewFilterFromConfigIncludePause()
+	filters, err := setupContainerFilters()
 	if err != nil {
 		return nil, err
 	}
 	return &KubeletListener{
 		watcher:  watcher,
-		filter:   filter,
+		filters:  filters,
 		services: make(map[string]Service),
 		ticker:   time.NewTicker(config.Datadog.GetDuration("kubelet_listener_polling_interval") * time.Second),
 		stop:     make(chan bool),
@@ -217,10 +219,16 @@ func (l *KubeletListener) createService(entity string, pod *kubelet.Pod, firstRu
 	var containerName string
 	for _, container := range pod.Status.GetAllContainers() {
 		if container.ID == svc.entity {
-			if l.filter.IsExcluded(container.Name, container.Image, pod.Metadata.Namespace) {
+			// Detect AD exclusion
+			if l.filters.global.IsExcluded(container.Name, container.Image, pod.Metadata.Namespace) {
 				log.Debugf("container %s filtered out: name %q image %q namespace %q", container.ID, container.Name, container.Image, pod.Metadata.Namespace)
 				return
 			}
+
+			// Detect metrics or logs exclusion
+			svc.metricsExcluded = l.filters.metrics.IsExcluded(container.Name, container.Image, pod.Metadata.Namespace)
+			svc.logsExcluded = l.filters.logs.IsExcluded(container.Name, container.Image, pod.Metadata.Namespace)
+
 			containerName = container.Name
 
 			// Add container uid as ID
@@ -391,6 +399,16 @@ func (s *KubeContainerService) GetCheckNames() []string {
 	return s.checkNames
 }
 
+// IsMetricExcluded returns true if metrics collection must be excluded for this service
+func (s *KubeContainerService) IsMetricExcluded() bool {
+	return s.metricsExcluded
+}
+
+// IsLogExcluded returns true if logs collection must be excluded for this service
+func (s *KubeContainerService) IsLogExcluded() bool {
+	return s.logsExcluded
+}
+
 // GetEntity returns the unique entity name linked to that service
 func (s *KubePodService) GetEntity() string {
 	return s.entity
@@ -449,4 +467,16 @@ func (s *KubePodService) IsReady() bool {
 // KubePodService doesn't implement this method
 func (s *KubePodService) GetCheckNames() []string {
 	return nil
+}
+
+// IsMetricExcluded always return false
+// KubePodService doesn't implement this method
+func (s *KubePodService) IsMetricExcluded() bool {
+	return false
+}
+
+// IsLogExcluded always return false
+// KubePodService doesn't implement this method
+func (s *KubePodService) IsLogExcluded() bool {
+	return false
 }

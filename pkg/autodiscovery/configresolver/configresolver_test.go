@@ -86,6 +86,16 @@ func (s *dummyService) GetCheckNames() []string {
 	return s.CheckNames
 }
 
+// IsMetricExcluded returns false
+func (s *dummyService) IsMetricExcluded() bool {
+	return false
+}
+
+// IsLogExcluded returns false
+func (s *dummyService) IsLogExcluded() bool {
+	return false
+}
+
 func TestGetFallbackHost(t *testing.T) {
 	ip, err := getFallbackHost(map[string]string{"bridge": "172.17.0.1"})
 	assert.Equal(t, "172.17.0.1", ip)

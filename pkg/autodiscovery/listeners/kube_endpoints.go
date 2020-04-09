@@ -394,3 +394,15 @@ func (s *KubeEndpointService) IsReady() bool {
 func (s *KubeEndpointService) GetCheckNames() []string {
 	return nil
 }
+
+// IsMetricExcluded always return false
+// KubeEndpointService doesn't implement this method
+func (s *KubeEndpointService) IsMetricExcluded() bool {
+	return false
+}
+
+// IsLogExcluded always return false
+// KubeEndpointService doesn't implement this method
+func (s *KubeEndpointService) IsLogExcluded() bool {
+	return false
+}

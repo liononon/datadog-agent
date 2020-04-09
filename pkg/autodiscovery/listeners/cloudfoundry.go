@@ -242,3 +242,13 @@ func (s *CloudFoundryService) IsReady() bool {
 func (s *CloudFoundryService) GetCheckNames() []string {
 	return []string{}
 }
+
+// IsMetricExcluded returns false on CF
+func (s *CloudFoundryService) IsMetricExcluded() bool {
+	return false
+}
+
+// IsLogExcluded returns false on CF
+func (s *CloudFoundryService) IsLogExcluded() bool {
+	return false
+}

@@ -114,3 +114,15 @@ func (s *DockerKubeletService) IsReady() bool {
 func (s *DockerKubeletService) GetCheckNames() []string {
 	return nil
 }
+
+// IsMetricExcluded always returns false
+// DockerKubeletService doesn't implement this method
+func (s *DockerKubeletService) IsMetricExcluded() bool {
+	return false
+}
+
+// IsLogExcluded always returns false
+// DockerKubeletService doesn't implement this method
+func (s *DockerKubeletService) IsLogExcluded() bool {
+	return false
+}

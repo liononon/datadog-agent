@@ -31,6 +31,13 @@ const (
 	tagKeyService = "service"
 )
 
+// containerFilters holds container filters for AD listeners
+type containerFilters struct {
+	global  *containers.Filter
+	metrics *containers.Filter
+	logs    *containers.Filter
+}
+
 // ComputeContainerServiceIDs takes an entity name, an image (resolved to an actual name) and labels
 // and computes the service IDs for this container service.
 func ComputeContainerServiceIDs(entity string, image string, labels map[string]string) []string {
@@ -113,4 +120,25 @@ func isServiceAnnotated(ksvc *v1.Service, annotationKey string) bool {
 		}
 	}
 	return false
+}
+
+// setupContainerFilters instantiates the required container filters for AD listeners
+func setupContainerFilters() (*containerFilters, error) {
+	global, err := containers.NewAutodiscoveryFilter(containers.Global)
+	if err != nil {
+		return nil, err
+	}
+	metrics, err := containers.NewAutodiscoveryFilter(containers.Metrics)
+	if err != nil {
+		return nil, err
+	}
+	logs, err := containers.NewAutodiscoveryFilter(containers.Logs)
+	if err != nil {
+		return nil, err
+	}
+	return &containerFilters{
+		global:  global,
+		metrics: metrics,
+		logs:    logs,
+	}, nil
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
-	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -33,7 +32,7 @@ import (
 // match templates against.
 type DockerListener struct {
 	dockerUtil *docker.DockerUtil
-	filter     *containers.Filter
+	filters    *containerFilters
 	services   map[string]Service
 	newService chan<- Service
 	delService chan<- Service
@@ -45,14 +44,16 @@ type DockerListener struct {
 // DockerService implements and store results from the Service interface for the Docker listener
 type DockerService struct {
 	sync.RWMutex
-	cID           string
-	adIdentifiers []string
-	hosts         map[string]string
-	ports         []ContainerPort
-	pid           int
-	hostname      string
-	creationTime  integration.CreationTime
-	checkNames    []string
+	cID             string
+	adIdentifiers   []string
+	hosts           map[string]string
+	ports           []ContainerPort
+	pid             int
+	hostname        string
+	creationTime    integration.CreationTime
+	checkNames      []string
+	metricsExcluded bool
+	logsExcluded    bool
 }
 
 // Make sure DockerService implements the Service interface
@@ -68,13 +69,13 @@ func NewDockerListener() (ServiceListener, error) {
 	if err != nil {
 		return nil, err
 	}
-	filter, err := containers.NewFilterFromConfigIncludePause()
+	filters, err := setupContainerFilters()
 	if err != nil {
 		return nil, err
 	}
 	return &DockerListener{
 		dockerUtil: d,
-		filter:     filter,
+		filters:    filters,
 		services:   make(map[string]Service),
 		stop:       make(chan bool),
 		health:     health.Register("ad-dockerlistener"),
@@ -206,6 +207,8 @@ func (l *DockerListener) processEvent(e *docker.ContainerEvent) {
 // and tells the AutoConfig that this service started.
 func (l *DockerListener) createService(cID string) {
 	var svc Service
+	var containerName string
+	var containerImage string
 
 	// Detect whether that container is managed by Kubernetes
 	var isKube bool
@@ -213,13 +216,15 @@ func (l *DockerListener) createService(cID string) {
 	if err != nil {
 		log.Errorf("Failed to inspect container %s - %s", cID[:12], err)
 	} else {
-		image, err := l.dockerUtil.ResolveImageNameFromContainer(cInspect)
+		containerImage, err = l.dockerUtil.ResolveImageNameFromContainer(cInspect)
 		if err != nil {
 			log.Warnf("error while resolving image name: %s", err)
-			image = ""
+			containerImage = ""
 		}
-		if l.filter.IsExcluded(cInspect.Name, image, "") {
-			log.Debugf("container %s filtered out: name %q image %q", cID[:12], cInspect.Name, image)
+		// Detect AD exclusion
+		containerName = cInspect.Name
+		if l.filters.global.IsExcluded(containerName, containerImage, "") {
+			log.Debugf("container %s filtered out: name %q image %q", cID[:12], containerName, containerImage)
 			return
 		}
 		if findKubernetesInLabels(cInspect.Config.Labels) {
@@ -241,9 +246,11 @@ func (l *DockerListener) createService(cID string) {
 		}
 	} else {
 		svc = &DockerService{
-			cID:          cID,
-			creationTime: integration.After,
-			checkNames:   checkNames,
+			cID:             cID,
+			creationTime:    integration.After,
+			checkNames:      checkNames,
+			metricsExcluded: l.filters.metrics.IsExcluded(containerName, containerImage, ""),
+			logsExcluded:    l.filters.logs.IsExcluded(containerName, containerImage, ""),
 		}
 	}
 
@@ -370,7 +377,7 @@ func (l *DockerListener) isExcluded(co types.Container) bool {
 		image = ""
 	}
 	for _, name := range co.Names {
-		if l.filter.IsExcluded(name, image, "") {
+		if l.filters.global.IsExcluded(name, image, "") {
 			log.Debugf("container %s filtered out: name %q image %q", co.ID[:12], name, image)
 			return true
 		}
@@ -613,4 +620,14 @@ func (s *DockerService) GetCheckNames() []string {
 	}
 
 	return s.checkNames
+}
+
+// IsMetricExcluded returns true if metrics collection must be excluded for this service
+func (s *DockerService) IsMetricExcluded() bool {
+	return s.metricsExcluded
+}
+
+// IsLogExcluded returns true if logs collection must be excluded for this service
+func (s *DockerService) IsLogExcluded() bool {
+	return s.logsExcluded
 }

@@ -602,10 +602,12 @@ func (ac *AutoConfig) processNewService(svc listeners.Service) {
 	// FIXME: schedule new services as well
 	ac.schedule([]integration.Config{
 		{
-			LogsConfig:   integration.Data{},
-			Entity:       svc.GetEntity(),
-			TaggerEntity: svc.GetTaggerEntity(),
-			CreationTime: svc.GetCreationTime(),
+			LogsConfig:      integration.Data{},
+			Entity:          svc.GetEntity(),
+			TaggerEntity:    svc.GetTaggerEntity(),
+			CreationTime:    svc.GetCreationTime(),
+			MetricsExcluded: svc.IsMetricExcluded(),
+			LogsExcluded:    svc.IsLogExcluded(),
 		},
 	})
 
@@ -621,10 +623,12 @@ func (ac *AutoConfig) processDelService(svc listeners.Service) {
 	// FIXME: unschedule remove services as well
 	ac.unschedule([]integration.Config{
 		{
-			LogsConfig:   integration.Data{},
-			Entity:       svc.GetEntity(),
-			TaggerEntity: svc.GetTaggerEntity(),
-			CreationTime: svc.GetCreationTime(),
+			LogsConfig:      integration.Data{},
+			Entity:          svc.GetEntity(),
+			TaggerEntity:    svc.GetTaggerEntity(),
+			CreationTime:    svc.GetCreationTime(),
+			MetricsExcluded: svc.IsMetricExcluded(),
+			LogsExcluded:    svc.IsLogExcluded(),
 		},
 	})
 }

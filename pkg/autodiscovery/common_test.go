@@ -75,3 +75,13 @@ func (s *dummyService) IsReady() bool {
 func (s *dummyService) GetCheckNames() []string {
 	return s.CheckNames
 }
+
+// IsMetricExcluded returns false
+func (s *dummyService) IsMetricExcluded() bool {
+	return false
+}
+
+// IsLogExcluded returns false
+func (s *dummyService) IsLogExcluded() bool {
+	return false
+}

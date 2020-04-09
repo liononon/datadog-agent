@@ -76,18 +76,20 @@ func SubstituteTemplateEnvVars(config *integration.Config) error {
 func Resolve(tpl integration.Config, svc listeners.Service) (integration.Config, error) {
 	// Copy original template
 	resolvedConfig := integration.Config{
-		Name:          tpl.Name,
-		Instances:     make([]integration.Data, len(tpl.Instances)),
-		InitConfig:    make(integration.Data, len(tpl.InitConfig)),
-		MetricConfig:  tpl.MetricConfig,
-		LogsConfig:    tpl.LogsConfig,
-		ADIdentifiers: tpl.ADIdentifiers,
-		ClusterCheck:  tpl.ClusterCheck,
-		Provider:      tpl.Provider,
-		Entity:        svc.GetEntity(),
-		CreationTime:  svc.GetCreationTime(),
-		NodeName:      tpl.NodeName,
-		Source:        tpl.Source,
+		Name:            tpl.Name,
+		Instances:       make([]integration.Data, len(tpl.Instances)),
+		InitConfig:      make(integration.Data, len(tpl.InitConfig)),
+		MetricConfig:    tpl.MetricConfig,
+		LogsConfig:      tpl.LogsConfig,
+		ADIdentifiers:   tpl.ADIdentifiers,
+		ClusterCheck:    tpl.ClusterCheck,
+		Provider:        tpl.Provider,
+		Entity:          svc.GetEntity(),
+		CreationTime:    svc.GetCreationTime(),
+		NodeName:        tpl.NodeName,
+		Source:          tpl.Source,
+		MetricsExcluded: svc.IsMetricExcluded(),
+		LogsExcluded:    svc.IsLogExcluded(),
 	}
 	copy(resolvedConfig.InitConfig, tpl.InitConfig)
 	copy(resolvedConfig.Instances, tpl.Instances)
